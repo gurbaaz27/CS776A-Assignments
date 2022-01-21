@@ -127,3 +127,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Datasets
+cifar-10-python.tar.gz
+cifar-10-batches-py/
+
+# MACOS
+__MACOSX
+
+# Utilities
+fast-commits
