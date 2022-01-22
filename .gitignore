@@ -137,3 +137,6 @@ __MACOSX
 
 # Utilities
 fast-commits
+*.jpg
+*.png 
+test.py
