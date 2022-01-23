@@ -24,7 +24,7 @@ def enable_logging() -> logging.Logger:
     """
     Returns a formatted logger for stdout and file io.
     """
-    LOG_FILE = "script.log"
+    LOG_FILE = "model.log"
     log = logging.getLogger()
     log.setLevel(logging.INFO)
     # formatter = logging.Formatter("%(levelname)s - %(asctime)s\n%(message)s")

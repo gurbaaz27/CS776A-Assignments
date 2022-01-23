@@ -25,7 +25,7 @@ def enable_logging() -> logging.Logger:
     """
     Returns a formatted logger for stdout and file io.
     """
-    LOG_FILE = "script.log"
+    LOG_FILE = "dataset.log"
     log = logging.getLogger()
     log.setLevel(logging.INFO)
     # formatter = logging.Formatter("%(levelname)s - %(asctime)s\n%(message)s")
@@ -70,9 +70,9 @@ def random_rotation(input_image):
     for i in range(0, 32):
         for j in range(0, 32):
             cos, sin = np.cos(theta), np.sin(theta)
-            ni = np.rint((i-15.5)*cos + (j-15.5)*sin + 15.5).astype('uint8')
-            nj = np.rint((j-15.5)*cos - (i-15.5)*sin + 15.5).astype('uint8')
-            if ni>=0 and ni<32 and nj>=0 and nj<32:
+            ni = np.rint((i - 15.5) * cos + (j - 15.5) * sin + 15.5).astype("uint8")
+            nj = np.rint((j - 15.5) * cos - (i - 15.5) * sin + 15.5).astype("uint8")
+            if ni >= 0 and ni < 32 and nj >= 0 and nj < 32:
                 for channel in range(CHANNELS):
                     output_image[channel][ni][nj] = input_image[channel][i][j]
 
@@ -237,6 +237,9 @@ def main():
     log.info(f"Size of test dataset: {len(test_dataset['filenames'])}")
     log.info(f"Labels in dataset: {label_names}")
 
+    with open("unaugmented_dataset", "wb") as f:
+        pickle.dump(train_dataset, f)
+
     ## 2. Image transformations
     log.info("## 2. Image transformations")
 
@@ -306,12 +309,15 @@ def main():
         train_dataset["filenames"].append(b"augmented_" + train_dataset["filenames"][i])
         train_dataset["labels"].append(train_dataset["labels"][i])
         augmented_images.append(augmented_image)
-    
+
     train_dataset["images"].append(augmented_images)
 
     log.info(len(train_dataset["filenames"]))
     log.info(len(train_dataset["labels"]))
     log.info(len(train_dataset["images"]))
+
+    with open("augmented_dataset", "wb") as f:
+        pickle.dump(train_dataset, f)
 
     return 0
 
