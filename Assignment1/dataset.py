@@ -65,10 +65,10 @@ def random_rotation(input_image):
 
     theta = np.radians(-theta)
 
-    output_image = np.zeros((3, 32, 32))
+    output_image = np.zeros((CHANNELS, HEIGHT, HEIGHT))
 
-    for i in range(0, 32):
-        for j in range(0, 32):
+    for i in range(0, HEIGHT):
+        for j in range(0, HEIGHT):
             cos, sin = np.cos(theta), np.sin(theta)
             ni = np.rint((i - 15.5) * cos + (j - 15.5) * sin + 15.5).astype("uint8")
             nj = np.rint((j - 15.5) * cos - (i - 15.5) * sin + 15.5).astype("uint8")
@@ -128,11 +128,11 @@ def random_crop(input_image):
     tly = random.randint(0, 4)
 
     ## bottom-right coordinates
-    brx = tlx + 32
-    bry = tly + 32
+    brx = tlx + HEIGHT
+    bry = tly + HEIGHT
 
-    padded_image = np.zeros((3, 36, 36))
-    output_image = np.zeros((3, 32, 32))
+    padded_image = np.zeros((CHANNELS, HEIGHT+4, HEIGHT+4))
+    output_image = np.zeros((CHANNELS, HEIGHT, HEIGHT))
 
     for channel in range(CHANNELS):
         padded_image[channel] = np.pad(
@@ -158,29 +158,38 @@ def contrast_and_horizontal_flipping(input_image):
     """
     alpha = random.uniform(0.5, 2.0)
 
-    output_image = np.zeros((3, 32, 32))
+    output_image = np.zeros((CHANNELS, HEIGHT, HEIGHT))
 
     ## perform contrast
     for channel in range(CHANNELS):
         for i in range(0, 32):
             for j in range(0, 32):
-                output_image[channel][i][j] = (
-                    alpha * (input_image[channel][i][j] - 128) + 128
-                ) % 256
+                output_image[channel][i][j] = alpha * (input_image[channel][i][j] - 128) + 128
+    
+    output_image = np.clip(output_image, 0, 255)
 
     probability = random.random()
 
     if probability > 0.5:
         ## perform horizontal flip
         for channel in range(CHANNELS):
-            for i in range(0, 32):
-                for j in range(0, 16):
-                    output_image[channel][i][j], output_image[channel][i][31 - j] = (
-                        input_image[channel][i][31 - j],
+            for i in range(0, HEIGHT):
+                for j in range(0, HEIGHT//2):
+                    output_image[channel][i][j], output_image[channel][i][HEIGHT - 1 - j] = (
+                        input_image[channel][i][HEIGHT - 1 - j],
                         input_image[channel][i][j],
                     )
 
     return output_image
+
+
+def save_image(image, filename):
+    """
+    Expects a (channels=3, height=32, width=32) shaped numpy array and saves it as image
+    """
+    Image.fromarray(image.transpose(1, 2, 0).astype(np.uint8)).save(
+        filename
+    )
 
 
 def main():
@@ -206,7 +215,7 @@ def main():
             for i in range(IMAGES_PER_BATCH):
                 filenames.append(batch_dataset[b"filenames"][i])
                 labels.append(batch_dataset[b"labels"][i])
-                images.append(np.array(batch_dataset[b"data"][i]).reshape(3, 32, 32))
+                images.append(np.array(batch_dataset[b"data"][i]))
 
         elif file.startswith("batches"):
             label_names = unpickle(os.path.join(CIFAR_DATASET_FILENAME, file))[
@@ -220,22 +229,24 @@ def main():
             for i in range(IMAGES_PER_BATCH):
                 test_filenames.append(test_batch[b"filenames"][i])
                 test_labels.append(test_batch[b"labels"][i])
-                test_images.append(np.array(test_batch[b"data"][i]).reshape(3, 32, 32))
+                test_images.append(np.array(test_batch[b"data"][i]))
 
     train_dataset = {
         "filenames": filenames,
         "labels": labels,
-        "images": np.array(images),
+        "images": np.array(images).reshape(IMAGES_PER_BATCH * NUM_TRAIN_BATCHES, CHANNELS, HEIGHT, HEIGHT),
     }
     test_dataset = {
         "filenames": test_filenames,
         "labels": test_labels,
-        "images": np.array(test_images),
+        "images": np.array(test_images).reshape(IMAGES_PER_BATCH, CHANNELS, HEIGHT, HEIGHT),
     }
 
     log.info(f"Size of train dataset: {len(train_dataset['filenames'])}")
     log.info(f"Size of test dataset: {len(test_dataset['filenames'])}")
     log.info(f"Labels in dataset: {label_names}")
+
+    log.info("Pickling unaugmented dataset")
 
     with open("unaugmented_dataset", "wb") as f:
         pickle.dump(train_dataset, f)
@@ -261,29 +272,19 @@ def main():
 
     # image_.resize(32, 32, 3)
 
-    Image.fromarray(example_image.transpose(1, 2, 0).astype(np.uint8)).save(
-        "example.png"
-    )
+    save_image(example_image, "example.png")
 
     out1 = random_rotation(example_image)
-    Image.fromarray(out1.transpose(1, 2, 0).astype(np.uint8)).save(
-        "example_randomrotation.png"
-    )
+    save_image(out1, "example_randomrotation.png")
 
     out2 = random_cutout(example_image)
-    Image.fromarray(out2.transpose(1, 2, 0).astype(np.uint8)).save(
-        "example_randomcutout.png"
-    )
+    save_image(out2, "example_randomcutout.png")
 
     out3 = random_crop(example_image)
-    Image.fromarray(out3.transpose(1, 2, 0).astype(np.uint8)).save(
-        "example_randomcrop.png"
-    )
+    save_image(out3, "example_randomcrop.png")
 
     out4 = contrast_and_horizontal_flipping(example_image)
-    Image.fromarray(out4.transpose(1, 2, 0).astype(np.uint8)).save(
-        "example_contrastandhorizontalflip.png"
-    )
+    save_image(out4, "example_contrastandhorizontalflip.png")
 
     log.info("Example image and its transformation images have been saved as png")
 
@@ -294,6 +295,7 @@ def main():
     augmented_images = []
 
     for i in tqdm(range(NUM_TRAIN_BATCHES * IMAGES_PER_BATCH)):
+    # for i in tqdm(range(100)):
         og_image = train_dataset["images"][i]
         operation = operations[i]
 
@@ -310,11 +312,15 @@ def main():
         train_dataset["labels"].append(train_dataset["labels"][i])
         augmented_images.append(augmented_image)
 
-    train_dataset["images"].append(augmented_images)
+    augmented_images = np.array(augmented_images)
 
-    log.info(len(train_dataset["filenames"]))
-    log.info(len(train_dataset["labels"]))
-    log.info(len(train_dataset["images"]))
+    train_dataset["images"] = np.concatenate([train_dataset["images"], augmented_images], axis=0)
+
+    log.info((train_dataset["filenames"][50000]))
+    log.info((train_dataset["labels"][50000]))
+    log.info((train_dataset["images"][50000]))
+
+    log.info("Pickling augmented dataset")
 
     with open("augmented_dataset", "wb") as f:
         pickle.dump(train_dataset, f)

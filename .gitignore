@@ -131,6 +131,7 @@ dmypy.json
 # Datasets
 cifar-10-python.tar.gz
 cifar-10-batches-py/
+*dataset
 
 # MACOS
 __MACOSX

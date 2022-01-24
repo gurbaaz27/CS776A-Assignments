@@ -13,9 +13,8 @@ from PIL import Image
 from tqdm import tqdm
 
 
-CIFAR_DATASET_FILENAME = "cifar-10-batches-py"
-IMAGES_PER_BATCH = 10000
-NUM_TRAIN_BATCHES = 5
+UNAUGMENTED_TRAIN_SIZE = 100000
+UNAUGMENTED_TRAIN_SIZE = 50000
 HEIGHT = 32
 CHANNELS = 3
 
@@ -51,11 +50,23 @@ def unpickle(file):
     return dict
 
 
+def save_image(image, filename):
+    """
+    Expects a (channels=3, height=32, width=32) shaped numpy array and saves it as image
+    """
+    Image.fromarray(image.transpose(1, 2, 0).astype(np.uint8)).save(
+        filename
+    )
+    
+
 def main():
     """
     Entry point of script
     """
     log = enable_logging()
+
+    unaugmented_dataset = unpickle("unaugmented_dataset")
+    augmented_dataset = unpickle("augmented_dataset")
 
     ## 4. Feature extraction
 
