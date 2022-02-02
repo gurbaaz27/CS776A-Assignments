@@ -198,12 +198,9 @@ def main():
     """
     log = enable_logging()
 
-    filenames = []
-    test_filenames = []
+    # filenames = []
     labels = []
-    test_labels = []
     images = []
-    test_images = []
 
     ## 1. Loading the dataset
     log.info("## 1. Loading the dataset")
@@ -212,10 +209,9 @@ def main():
         if file.startswith("data"):
             batch_dataset = unpickle(os.path.join(CIFAR_DATASET_FILENAME, file))
 
-            for i in range(IMAGES_PER_BATCH):
-                filenames.append(batch_dataset[b"filenames"][i])
-                labels.append(batch_dataset[b"labels"][i])
-                images.append(np.array(batch_dataset[b"data"][i]))
+            # filenames.extend(batch_dataset[b"filenames"])
+            labels.extend(batch_dataset[b"labels"])
+            images.extend(np.array(batch_dataset[b"data"]))
 
         elif file.startswith("batches"):
             label_names = unpickle(os.path.join(CIFAR_DATASET_FILENAME, file))[
@@ -226,43 +222,47 @@ def main():
         elif file.startswith("test_batch"):
             test_batch = unpickle(os.path.join(CIFAR_DATASET_FILENAME, file))
 
-            for i in range(IMAGES_PER_BATCH):
-                test_filenames.append(test_batch[b"filenames"][i])
-                test_labels.append(test_batch[b"labels"][i])
-                test_images.append(np.array(test_batch[b"data"][i]))
+            # test_filenames = test_batch[b"filenames"]
+            test_labels = test_batch[b"labels"]
+            test_images = np.array(test_batch[b"data"])
 
-    train_dataset = {
-        "filenames": filenames,
+    unaugmented_dataset = {
+        # "filenames": filenames,
         "labels": labels,
         "images": np.array(images).reshape(IMAGES_PER_BATCH * NUM_TRAIN_BATCHES, CHANNELS, HEIGHT, HEIGHT),
     }
     test_dataset = {
-        "filenames": test_filenames,
+        # "filenames": test_filenames,
         "labels": test_labels,
         "images": np.array(test_images).reshape(IMAGES_PER_BATCH, CHANNELS, HEIGHT, HEIGHT),
     }
 
-    log.info(f"Size of train dataset: {len(train_dataset['filenames'])}")
-    log.info(f"Size of test dataset: {len(test_dataset['filenames'])}")
-    log.info(f"Labels in dataset: {label_names}")
+    log.info(f"Size of train dataset: {len(unaugmented_dataset['labels'])}")
+    # log.info(f"Size of test dataset: {len(test_dataset['filenames'])}")
+    log.info(f"Labels in CIFAR-10 dataset: {label_names}")
 
     log.info("Pickling unaugmented dataset")
 
     with open("unaugmented_dataset", "wb") as f:
-        pickle.dump(train_dataset, f)
+        pickle.dump(unaugmented_dataset, f)
+
+    log.info("Pickling test dataset")
+
+    with open("test_dataset", "wb") as f:
+        pickle.dump(test_dataset, f)
 
     ## 2. Image transformations
     log.info("## 2. Image transformations")
 
     example_idx = random.randint(0, NUM_TRAIN_BATCHES * IMAGES_PER_BATCH - 1)
-    example_image = train_dataset["images"][example_idx]
+    example_image = unaugmented_dataset["images"][example_idx]
 
     log.info(
-        f"Label of example image: {train_dataset['labels'][example_idx]} ({label_names[train_dataset['labels'][example_idx]-1]})"
+        f"Label of example image: {unaugmented_dataset['labels'][example_idx]} ({label_names[unaugmented_dataset['labels'][example_idx]-1]})"
     )
-    log.info(
-        f"Name of example image: {train_dataset['filenames'][example_idx].decode('utf-8')}"
-    )
+    # log.info(
+    #     f"Name of example image: {train_dataset['filenames'][example_idx].decode('utf-8')}"
+    # )
     log.info(f"Matrix shape of example image: {example_image.shape}")
 
     ## Naive approach
@@ -286,17 +286,17 @@ def main():
     out4 = contrast_and_horizontal_flipping(example_image)
     save_image(out4, "example_contrastandhorizontalflip.png")
 
-    log.info("Example image and its transformation images have been saved as png")
+    log.info("Example image and its transformation images have been saved as .png files")
 
     ## 3. Generating augmented training set
-    log.info("## 3. Generating augmented training set")
+    log.info("## 3. Generating augmented training dataset")
 
     operations = np.random.randint(0, 4, NUM_TRAIN_BATCHES * IMAGES_PER_BATCH)
     augmented_images = []
 
     for i in tqdm(range(NUM_TRAIN_BATCHES * IMAGES_PER_BATCH)):
     # for i in tqdm(range(100)):
-        og_image = train_dataset["images"][i]
+        og_image = unaugmented_dataset["images"][i]
         operation = operations[i]
 
         if operation == 0:
@@ -308,22 +308,21 @@ def main():
         else:
             augmented_image = contrast_and_horizontal_flipping(og_image)
 
-        train_dataset["filenames"].append(b"augmented_" + train_dataset["filenames"][i])
-        train_dataset["labels"].append(train_dataset["labels"][i])
         augmented_images.append(augmented_image)
 
-    augmented_images = np.array(augmented_images)
+    augmented_dataset = {
+        # "filenames": filenames,
+        "labels": labels,
+        "images": np.array(augmented_images).reshape(NUM_TRAIN_BATCHES * IMAGES_PER_BATCH, CHANNELS, HEIGHT, HEIGHT),
+        # "images": np.array(augmented_images).reshape(100, CHANNELS, HEIGHT, HEIGHT),
+    }
 
-    train_dataset["images"] = np.concatenate([train_dataset["images"], augmented_images], axis=0)
-
-    log.info((train_dataset["filenames"][50000]))
-    log.info((train_dataset["labels"][50000]))
-    log.info((train_dataset["images"][50000]))
+    log.info(f"Size of train dataset: {len(augmented_dataset['labels'])}")
 
     log.info("Pickling augmented dataset")
 
     with open("augmented_dataset", "wb") as f:
-        pickle.dump(train_dataset, f)
+        pickle.dump(augmented_dataset, f)
 
     return 0
 
