@@ -141,3 +141,4 @@ fast-commits
 *.jpg
 *.png 
 test.py
+train_features
