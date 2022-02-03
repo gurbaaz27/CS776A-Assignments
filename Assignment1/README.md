@@ -71,17 +71,10 @@ Make sure you have `python` and `pip`/`conda` (package managers for `python`) in
 
 ## 5. Derivation of gradients and update expressions
 
-\begin{equation}
-    3+3
-\end{equation}
+We need to update weights and biases of hidden layer and output layer. Lets call them `wh`, `bh`, `wo` and `bo` respectively.
 
-Once the gradients are calculated, we can simply update our weights and biases as follows:
-
-\begin{align}
-    w_o = w_o - learning_rate x  
-\begin{align*}
 
 ## 6. Performance Comparison
 
-After `20` epochs, for MLP model trained on unaugmented dataset, train-set accuracy was `83.1%` and test-set accuracy was `79.16%`. After `10` epochs, for MLP model trained on augmented dataset, train-set accuracy was `80.83%` and test-set accuracy was `78.48%`. Here epochs have been kept half for fair comparison, since size of augmented dataset was twice that of unaugmented. But on `20` epochs, the model outperforms and gives a train-set accuracy of `84.9%` and test-set accuracy of `80.1%`. Augmented dataset do makes it slightly harder for model to overfit on trainset due to different image transformations done on samples, and it makes performance on test set relatively better as model has learned to fit over very different types of images due to augmented images. Though here, the advantage of augmented dataset is not well profound and there is only a significant edge over the unaugmented dataset. 
+After `20` epochs, for MLP model trained on unaugmented dataset, train-set accuracy was `83.26%` and test-set accuracy was `79.03%`. After `10` epochs, for MLP model trained on augmented dataset, train-set accuracy was `70.01%` and test-set accuracy was `78.36%`. Here epochs have been kept half for fair comparison, since size of augmented dataset was twice that of unaugmented. But on `20` epochs, the model outperforms and gives a train-set accuracy of `84.9%` and test-set accuracy of `80.1%`. Augmented dataset do makes it slightly harder for model to overfit on trainset due to different image transformations done on samples, and it makes performance on test set relatively better as model has learned to fit over very different types of images due to augmented images. Though here, the advantage of augmented dataset is not well profound and there is only a significant edge over the unaugmented dataset. 
     
