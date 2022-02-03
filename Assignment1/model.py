@@ -134,8 +134,8 @@ def resize_image(image):
 
 
 def softmax(x):
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum()
+    e_x = np.exp(x - np.max(x, axis=1).reshape(x.shape[0],1))
+    return e_x / e_x.sum(axis=1, keepdims=True)
 
 
 def relu(Z):
@@ -143,15 +143,16 @@ def relu(Z):
 
 
 def relu_backward(Z):
-    Z[Z <= 0] = 0
-    Z[Z > 0] = 1
-    return Z
+    z = np.copy(Z)
+    z[Z <= 0] = 0
+    z[Z > 0] = 1
+    return z
 
 
 class MLP:
     def __init__(
         self,
-        batch_size=50000,
+        batch_size=1,
         lr=0.001,
         train_size=50000,
         input_nodes=512,
@@ -171,42 +172,43 @@ class MLP:
         """
         Initialising weights and biases
         """
-        self.wh = np.random.randn(self.input_nodes, self.hidden_nodes) * 0.01
-        self.bh = np.zeros((self.hidden_nodes, 1))
+        self.wh = np.random.randn(self.input_nodes, self.hidden_nodes) * 0.1
+        self.bh = np.random.randn(1, self.hidden_nodes) * 0.1
 
-        self.wo = np.random.randn(self.hidden_nodes, self.output_labels) * 0.01
-        self.bo = np.zeros((self.output_labels, 1))
+        self.wo = np.random.randn(self.hidden_nodes, self.output_labels) * 0.1
+        self.bo = np.random.randn(1, self.output_labels) * 0.1
 
     def forward(self, x):
         """
         Forward pass
         """
-        self.zh = np.dot(x, self.wh) + self.bh
-        self.ah = relu(self.zh)
-        self.zo = np.dot(self.ah, self.wo) + self.bo
-        self.ao = softmax(self.zo)
+        self.zh = np.copy(np.dot(x, self.wh) + self.bh)
+        self.ah = np.copy(relu(self.zh))
+        self.zo = np.copy(np.dot(self.ah, self.wo) + self.bo)
+        self.ao = np.copy(softmax(self.zo))
 
     def backprop(self, x, y):
         """
         Backward pass
         """
-        self.dcost_dzo = self.ao - y
-        self.dzo_dwo = self.ah
+        # print("Back")
+        self.dcost_dzo = np.copy(self.ao - y)
+        self.dzo_dwo = np.copy(self.ah)
 
-        self.dcost_wo = (1 / self.batch_size) * np.dot(self.dzo_dwo.T, self.dcost_dzo)
-        self.dcost_bo = (1 / self.batch_size) * self.dcost_dzo
+        self.dcost_wo = np.copy(np.dot(self.dzo_dwo.T, self.dcost_dzo))
+        self.dcost_bo = np.copy(self.dcost_dzo)
 
-        self.dzo_dah = self.wo
-        self.dcost_dah = np.dot(self.dcost_dzo, self.dzo_dah.T)
+        self.dzo_dah = np.copy(self.wo)
+        self.dcost_dah = np.copy(np.dot(self.dcost_dzo, self.dzo_dah.T))
         self.dah_dzh = relu_backward(self.zh)
-        self.dzh_dwh = x
+        self.dzh_dwh = np.copy(x)
 
-        self.dcost_wh = (1 / self.batch_size) * np.dot(
-            self.dzh_dwh.T, self.dah_dzh * self.dcost_dah
-        )
-        self.dcost_bh = (1 / self.batch_size) * np.multiply(
+        self.dcost_wh = np.copy(np.dot(
+            self.dzh_dwh.T, np.multiply(self.dah_dzh, self.dcost_dah)
+        ))
+        self.dcost_bh = np.copy(np.multiply(
             self.dcost_dah, self.dah_dzh
-        )
+        ))
 
     def train(self, X, Y, epochs):
         """
@@ -226,6 +228,7 @@ class MLP:
                 self.wo -= self.lr * self.dcost_wo
                 self.bo -= self.lr * self.dcost_bo.sum(axis=0)
 
+            self.forward(X)
             loss = -np.sum(np.multiply(np.log(self.ao), Y)) / self.size
             print(f"Epoch {epoch} || Loss := {loss}")
 
@@ -234,7 +237,7 @@ class MLP:
         Predictions are computed using only the forward pass
         """
         self.forward(x)
-        return np.round(self.ao).astype(np.int)
+        return np.argmax(self.ao, axis=1)
 
 
 def main():
@@ -259,15 +262,16 @@ def main():
     log.info("## 4. Feature extraction")
     resnet_model = BBResNet18()
 
-    unaugmented_trainset = unaugmented_dataset["images"].astype("float32")
+    unaugmented_trainset = unaugmented_dataset["images"].astype("float32") / 255.0
     unaugmented_trainset = unaugmented_trainset.transpose(0, 2, 3, 1)
 
-    augmented_trainset = augmented_dataset["images"].astype("float32")
+    augmented_trainset = augmented_dataset["images"].astype("float32") / 255.0
     augmented_trainset = augmented_trainset.transpose(0, 2, 3, 1)
 
-    testset = test_dataset["images"].astype("float32")
+    testset = test_dataset["images"].astype("float32") / 255.0
     testset = testset.transpose(0, 2, 3, 1)
 
+    log.info("Unaugmented trainset feature extraction")
     X_u = []
     for i in tqdm(unaugmented_trainset):
         feature = resnet_model.feature_extraction(
@@ -283,6 +287,7 @@ def main():
     Y_u = np.zeros((unaugmented_labels.size, unaugmented_labels.max() + 1))
     Y_u[np.arange(unaugmented_labels.size), unaugmented_labels] = 1
 
+    log.info("Augmented trainset feature extraction")
     X_a = []
     for i in tqdm(augmented_trainset):
         feature = resnet_model.feature_extraction(
@@ -298,6 +303,7 @@ def main():
     Y_a = np.zeros((augmented_labels.size, augmented_labels.max() + 1))
     Y_a[np.arange(augmented_labels.size), augmented_labels] = 1
 
+    log.info("Testset feature extraction")
     test_X = []
     for i in tqdm(testset):
         feature = resnet_model.feature_extraction(
@@ -326,7 +332,7 @@ def main():
     if not args.no_train:
         log.info("Training on unaugmented trainset")
         mlp_u = MLP(1, 0.001, 50000, 512, 64, 10)
-        mlp_u.train(X_u, Y_u, 100)
+        mlp_u.train(X_u, Y_u, 20)
 
         mlp_predictions_u = mlp_u.predict(X_u)
 
@@ -345,13 +351,13 @@ def main():
 
         log.info("Training on augmented trainset")
         mlp_a = MLP(1, 0.001, 100000, 512, 64, 10)
-        mlp_a.train(np.concatenate([X_u, X_a]), np.concatenate([Y_u, Y_a]), 100)
+        mlp_a.train(np.concatenate([X_u, X_a]), np.concatenate([Y_u, Y_a]), 20)
 
         mlp_predictions_a = mlp_u.predict(np.concatenate([X_u, X_a]))
 
         print(
             "MLP model accuracy(trained on augmented trainset) on training data: ",
-            np.sum(mlp_predictions_a == np.concatenate([Y_u, Y_a]))
+            np.sum(mlp_predictions_a == np.concatenate([unaugmented_labels, augmented_labels]))
             / (2 * unaugmented_labels.shape[0]),
         )
 
@@ -363,7 +369,7 @@ def main():
             np.save(f, mlp_a.bo)
 
     log.info("Loading weights of MLP (trained on unaugmented trainset)")
-    mlp_u = MLP(1, 0.001, 50000, 512, 64, 10)
+    mlp_u = MLP(1, 0.001, 50000, 512, 64, 20)
     with open("mlp_unaugmented.npy", "rb") as f:
         mlp_u.wh = np.load(f)
         mlp_u.bh = np.load(f)
@@ -380,7 +386,7 @@ def main():
         )
 
     log.info("Loading weights of MLP (trained on augmented trainset)")
-    mlp_a = MLP(1, 0.001, 100000, 512, 64, 10)
+    mlp_a = MLP(1, 0.001, 100000, 512, 64, 20)
     with open("mlp_augmented.npy", "rb") as f:
         mlp_a.wh = np.load(f)
         mlp_a.bh = np.load(f)
