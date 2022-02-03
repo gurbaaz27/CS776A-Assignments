@@ -131,7 +131,7 @@ def random_crop(input_image):
     brx = tlx + HEIGHT
     bry = tly + HEIGHT
 
-    padded_image = np.zeros((CHANNELS, HEIGHT+4, HEIGHT+4))
+    padded_image = np.zeros((CHANNELS, HEIGHT + 4, HEIGHT + 4))
     output_image = np.zeros((CHANNELS, HEIGHT, HEIGHT))
 
     for channel in range(CHANNELS):
@@ -164,8 +164,10 @@ def contrast_and_horizontal_flipping(input_image):
     for channel in range(CHANNELS):
         for i in range(0, 32):
             for j in range(0, 32):
-                output_image[channel][i][j] = alpha * (input_image[channel][i][j] - 128) + 128
-    
+                output_image[channel][i][j] = (
+                    alpha * (input_image[channel][i][j] - 128) + 128
+                )
+
     output_image = np.clip(output_image, 0, 255)
 
     probability = random.random()
@@ -174,8 +176,11 @@ def contrast_and_horizontal_flipping(input_image):
         ## perform horizontal flip
         for channel in range(CHANNELS):
             for i in range(0, HEIGHT):
-                for j in range(0, HEIGHT//2):
-                    output_image[channel][i][j], output_image[channel][i][HEIGHT - 1 - j] = (
+                for j in range(0, HEIGHT // 2):
+                    (
+                        output_image[channel][i][j],
+                        output_image[channel][i][HEIGHT - 1 - j],
+                    ) = (
                         input_image[channel][i][HEIGHT - 1 - j],
                         input_image[channel][i][j],
                     )
@@ -187,9 +192,7 @@ def save_image(image, filename):
     """
     Expects a (channels=3, height=32, width=32) shaped numpy array and saves it as image
     """
-    Image.fromarray(image.transpose(1, 2, 0).astype(np.uint8)).save(
-        filename
-    )
+    Image.fromarray(image.transpose(1, 2, 0).astype(np.uint8)).save(filename)
 
 
 def main():
@@ -229,12 +232,16 @@ def main():
     unaugmented_dataset = {
         # "filenames": filenames,
         "labels": labels,
-        "images": np.array(images).reshape(IMAGES_PER_BATCH * NUM_TRAIN_BATCHES, CHANNELS, HEIGHT, HEIGHT),
+        "images": np.array(images).reshape(
+            IMAGES_PER_BATCH * NUM_TRAIN_BATCHES, CHANNELS, HEIGHT, HEIGHT
+        ),
     }
     test_dataset = {
         # "filenames": test_filenames,
         "labels": test_labels,
-        "images": np.array(test_images).reshape(IMAGES_PER_BATCH, CHANNELS, HEIGHT, HEIGHT),
+        "images": np.array(test_images).reshape(
+            IMAGES_PER_BATCH, CHANNELS, HEIGHT, HEIGHT
+        ),
     }
 
     log.info(f"Size of train dataset: {len(unaugmented_dataset['labels'])}")
@@ -286,7 +293,9 @@ def main():
     out4 = contrast_and_horizontal_flipping(example_image)
     save_image(out4, "example_contrastandhorizontalflip.png")
 
-    log.info("Example image and its transformation images have been saved as .png files")
+    log.info(
+        "Example image and its transformation images have been saved as .png files"
+    )
 
     ## 3. Generating augmented training set
     log.info("## 3. Generating augmented training dataset")
@@ -295,7 +304,7 @@ def main():
     augmented_images = []
 
     for i in tqdm(range(NUM_TRAIN_BATCHES * IMAGES_PER_BATCH)):
-    # for i in tqdm(range(100)):
+        # for i in tqdm(range(100)):
         og_image = unaugmented_dataset["images"][i]
         operation = operations[i]
 
@@ -313,7 +322,9 @@ def main():
     augmented_dataset = {
         # "filenames": filenames,
         "labels": labels,
-        "images": np.array(augmented_images).reshape(NUM_TRAIN_BATCHES * IMAGES_PER_BATCH, CHANNELS, HEIGHT, HEIGHT),
+        "images": np.array(augmented_images).reshape(
+            NUM_TRAIN_BATCHES * IMAGES_PER_BATCH, CHANNELS, HEIGHT, HEIGHT
+        ),
         # "images": np.array(augmented_images).reshape(100, CHANNELS, HEIGHT, HEIGHT),
     }
 

@@ -134,7 +134,7 @@ def resize_image(image):
 
 
 def softmax(x):
-    e_x = np.exp(x - np.max(x, axis=1).reshape(x.shape[0],1))
+    e_x = np.exp(x - np.max(x, axis=1).reshape(x.shape[0], 1))
     return e_x / e_x.sum(axis=1, keepdims=True)
 
 
@@ -191,7 +191,6 @@ class MLP:
         """
         Backward pass
         """
-        # print("Back")
         self.dcost_dzo = np.copy(self.ao - y)
         self.dzo_dwo = np.copy(self.ah)
 
@@ -203,12 +202,10 @@ class MLP:
         self.dah_dzh = relu_backward(self.zh)
         self.dzh_dwh = np.copy(x)
 
-        self.dcost_wh = np.copy(np.dot(
-            self.dzh_dwh.T, np.multiply(self.dah_dzh, self.dcost_dah)
-        ))
-        self.dcost_bh = np.copy(np.multiply(
-            self.dcost_dah, self.dah_dzh
-        ))
+        self.dcost_wh = np.copy(
+            np.dot(self.dzh_dwh.T, np.multiply(self.dah_dzh, self.dcost_dah))
+        )
+        self.dcost_bh = np.copy(np.multiply(self.dcost_dah, self.dah_dzh))
 
     def train(self, X, Y, epochs):
         """
@@ -357,7 +354,10 @@ def main():
 
         print(
             "MLP model accuracy(trained on augmented trainset) on training data: ",
-            np.sum(mlp_predictions_a == np.concatenate([unaugmented_labels, augmented_labels]))
+            np.sum(
+                mlp_predictions_a
+                == np.concatenate([unaugmented_labels, augmented_labels])
+            )
             / (2 * unaugmented_labels.shape[0]),
         )
 
@@ -375,15 +375,14 @@ def main():
         mlp_u.bh = np.load(f)
         mlp_u.wo = np.load(f)
         mlp_u.bo = np.load(f)
-    
+
     log.info("Calculating predictions of MLP (trained on unaugmented trainset)")
     mlp_predictions_u = mlp_u.predict(test_X)
 
     print(
-            "MLP model accuracy(trained on unaugmented trainset) on test data: ",
-            np.sum(mlp_predictions_u == test_labels)
-            / test_labels.shape[0],
-        )
+        "MLP model accuracy(trained on unaugmented trainset) on test data: ",
+        np.sum(mlp_predictions_u == test_labels) / test_labels.shape[0],
+    )
 
     log.info("Loading weights of MLP (trained on augmented trainset)")
     mlp_a = MLP(1, 0.001, 100000, 512, 64, 20)
@@ -392,15 +391,14 @@ def main():
         mlp_a.bh = np.load(f)
         mlp_a.wo = np.load(f)
         mlp_a.bo = np.load(f)
-    
+
     log.info("Calculating predictions of MLP (trained on augmented trainset)")
     mlp_predictions_a = mlp_a.predict(test_X)
 
     print(
-            "MLP model accuracy(trained on augmented trainset) on test data: ",
-            np.sum(mlp_predictions_a == test_labels)
-            / test_labels.shape[0],
-        )
+        "MLP model accuracy(trained on augmented trainset) on test data: ",
+        np.sum(mlp_predictions_a == test_labels) / test_labels.shape[0],
+    )
 
     return 0
 
